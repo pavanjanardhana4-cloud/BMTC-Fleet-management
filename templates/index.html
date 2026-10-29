@@ -1,0 +1,332 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            position: relative;
+            /* overflow: hidden; */
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.2) 100%);
+            animation: pulse 8s infinite alternate;
+            z-index: 1;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .login-container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+            z-index: 2;
+            transform: translateY(0);
+            transition: transform 0.3s, box-shadow 0.3s;
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .login-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        .login-container h1 {
+            text-align: center;
+            margin-bottom: 1.8rem;
+            color: #333;
+            font-size: 2rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        
+        .login-container h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 3px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.7rem;
+            color: #555;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.9rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background-color: #f9f9f9;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background-color: #fff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+        
+        .form-group input::placeholder {
+            color: #aaa;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 0.9rem;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            /* overflow: hidden; */
+        }
+        
+        .btn:hover {
+            background: linear-gradient(to right, #764ba2, #667eea);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0.1), rgba(255,255,255,0));
+            transform: translateX(0);
+            transition: transform 0.3s;
+        }
+        
+        .btn:hover::after {
+            transform: translateX(100%);
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 1rem;
+            padding: 0.8rem;
+            border-radius: 5px;
+            background-color: rgba(231, 76, 60, 0.1);
+            display: none;
+            animation: shake 0.5s;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 38px;
+            cursor: pointer;
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .remember-me input {
+            margin-right: 0.5rem;
+        }
+        
+        .remember-me label {
+            color: #555;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 2rem;
+                margin: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Admin Login</h1>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="Enter your username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                <span class="password-toggle" id="passwordToggle">Show</span>
+            </div>
+            <div class="remember-me">
+                <input type="checkbox" id="rememberMe">
+                <label for="rememberMe">Remember me</label>
+            </div>
+            <button type="submit" class="btn">Login</button>
+        </form>
+        <div id="errorMessage" class="error-message">Invalid username or password</div>
+    </div>
+
+    <script>
+        const passwordToggle = document.getElementById('passwordToggle');
+        const passwordInput = document.getElementById('password');
+        
+        passwordToggle.addEventListener('click', function() {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                passwordToggle.textContent = 'Hide';
+            } else {
+                passwordInput.type = 'password';
+                passwordToggle.textContent = 'Show';
+            }
+        });
+        
+        const rememberMe = document.getElementById('rememberMe');
+        const usernameInput = document.getElementById('username');
+        
+        window.addEventListener('load', function() {
+            const savedUsername = localStorage.getItem('adminUsername');
+            if (savedUsername) {
+                usernameInput.value = savedUsername;
+                rememberMe.checked = true;
+            }
+        });
+        
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (username === 'admin' && password === 'admin123') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                
+                if (rememberMe.checked) {
+                    localStorage.setItem('adminUsername', username);
+                } else {
+                    localStorage.removeItem('adminUsername');
+                }
+                
+                const btn = document.querySelector('.btn');
+                btn.textContent = 'Logging in...';
+                btn.disabled = true;
+                
+                setTimeout(() => {
+                    window.location.href = 'input.html';
+                }, 800);
+            } else {
+                const errorMessage = document.getElementById('errorMessage');
+                errorMessage.style.display = 'block';
+                
+                document.getElementById('password').value = '';
+                
+                setTimeout(() => {
+                    errorMessage.style.display = 'none';
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,619 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Information</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            position: relative;
+            /* overflow: hidden; */
+            padding: 2rem;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.2) 100%);
+            animation: pulse 8s infinite alternate;
+            z-index: 1;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .output-container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            position: relative;
+            z-index: 2;
+            transform: translateY(0);
+            transition: transform 0.3s, box-shadow 0.3s;
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .output-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        .output-container h1 {
+            text-align: center;
+            margin-bottom: 1.8rem;
+            color: #333;
+            font-size: 2rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        
+        .output-container h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 3px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+        
+        .info-card {
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.8rem;
+            margin-bottom: 1.8rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .info-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .info-card h2 {
+            color: #667eea;
+            margin-bottom: 1.2rem;
+            font-size: 1.3rem;
+            position: relative;
+            padding-bottom: 8px;
+        }
+        
+        .info-card h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid #eee;
+            transition: all 0.3s;
+        }
+        
+        .info-item:hover {
+            background-color: rgba(102, 126, 234, 0.05);
+            padding-left: 10px;
+            padding-right: 10px;
+            border-radius: 5px;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .info-value {
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .result-section {
+            margin-top: 2rem;
+            padding-top: 1.8rem;
+            border-top: 1px solid #eee;
+        }
+        
+        .result-section h2 {
+            color: #667eea;
+            margin-bottom: 1.2rem;
+            font-size: 1.3rem;
+            position: relative;
+            padding-bottom: 8px;
+        }
+        
+        .result-section h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+        
+        .result-content {
+            background-color: #f0f4ff;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            line-height: 1.6;
+            transition: all 0.3s;
+            animation: fadeIn 0.5s ease-out 0.3s both;
+        }
+        
+        .result-content:hover {
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            padding: 0.9rem 1.8rem;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            /* overflow: hidden; */
+        }
+        
+        .btn:hover {
+            background: linear-gradient(to right, #764ba2, #667eea);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0.1), rgba(255,255,255,0));
+            transform: translateX(0);
+            transition: transform 0.3s;
+        }
+        
+        .btn:hover::after {
+            transform: translateX(100%);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(to right, #6c757d, #495057);
+        }
+        
+        .btn-secondary:hover {
+            background: linear-gradient(to right, #495057, #6c757d);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(to right, #e74c3c, #c0392b);
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(to right, #c0392b, #e74c3c);
+        }
+        
+        .route-type {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        
+        .route-type.regular {
+            background-color: #e0f7fa;
+            color: #00838f;
+        }
+        
+        .time-period {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .time-period.morning {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        .time-period.midday {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .time-period.evening {
+            background-color: #fff8e1;
+            color: #ff8f00;
+        }
+        
+        .time-period.off-peak {
+            background-color: #f5f5f5;
+            color: #424242;
+        }
+        
+        .travel-time {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #e8eaf6;
+            color: #3949ab;
+            border-radius: 6px;
+            font-weight: 600;
+            animation: pulse 2s infinite alternate;
+        }
+        
+        .forecast-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .forecast-table th, .forecast-table td {
+            padding: 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .forecast-table th {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .forecast-table tr:hover {
+            background-color: #f0f4ff;
+        }
+        
+        @media (max-width: 600px) {
+            .output-container {
+                padding: 2rem;
+                margin: 1rem;
+            }
+            
+            .btn-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .forecast-table {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="output-container">
+        <h1>Route Information</h1>
+        
+        <div class="info-card">
+            <h2>Input Details</h2>
+            <div class="info-item">
+                <span class="info-label">Time:</span>
+                <span class="info-value" id="timeValue">--:--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Route Code:</span>
+                <span class="info-value" id="routeCodeValue">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Source:</span>
+                <span class="info-value" id="sourceValue">--</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Destination:</span>
+                <span class="info-value" id="destinationValue">--</span>
+            </div>
+        </div>
+        
+        <div class="result-section">
+            <h2>Current Estimate</h2>
+            <div class="result-content" id="resultContent">
+                <div id="routeTypeIndicator"></div>
+                <div id="routeDescription"></div>
+                <div id="timePeriodIndicator"></div>
+                <div id="travelTimeIndicator" class="travel-time"></div>
+            </div>
+        </div>
+        
+        <div class="result-section">
+            <h2>Full-Day Forecast</h2>
+            <div class="result-content">
+                <table class="forecast-table" id="forecastTable">
+                    <thead>
+                        <tr>
+                            <th>Hour</th>
+                            <th>Buses Required</th>
+                            <th>Travel Time</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div style="margin-top: 1.5rem;">
+                    <canvas id="forecastChart" height="140"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="btn-container">
+            <button class="btn btn-secondary" id="backBtn">Back to Input</button>
+            <button class="btn btn-danger" id="logoutBtn">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('load', async function() {
+            if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const time = sessionStorage.getItem('time');
+            const routeCode = sessionStorage.getItem('routeCode');
+            
+            document.getElementById('timeValue').textContent = time || '--:--';
+            document.getElementById('routeCodeValue').textContent = routeCode || '--';
+            
+            await generateResult(time, routeCode);
+        });
+        
+        async function generateResult(time, routeCode) {
+            const routeTypeIndicator = document.getElementById('routeTypeIndicator');
+            const routeDescription = document.getElementById('routeDescription');
+            const timePeriodIndicator = document.getElementById('timePeriodIndicator');
+            const travelTimeIndicator = document.getElementById('travelTimeIndicator');
+            const sourceValue = document.getElementById('sourceValue');
+            const destinationValue = document.getElementById('destinationValue');
+            const forecastTableBody = document.getElementById('forecastTable').querySelector('tbody');
+            
+            // Fetch current estimate
+            const estimateResponse = await fetch('/api/estimate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ time, routeCode })
+            });
+            const estimateData = await estimateResponse.json();
+            
+            if (estimateData.error) {
+                routeDescription.textContent = 'Error fetching estimate';
+                return;
+            }
+            
+            // Set route details
+            sourceValue.textContent = estimateData.source;
+            destinationValue.textContent = estimateData.destination;
+            
+            // Set route type (all routes in dataset are regular)
+            routeTypeIndicator.innerHTML = '<span class="route-type regular">Regular Route</span>';
+            
+            // Determine time period
+            const [hours, minutes] = time.split(':').map(Number);
+            const timeInHours = hours + minutes / 60;
+            let timePeriod, timePeriodClass, timePeriodText;
+            
+            if (timeInHours >= 6 && timeInHours < 10) {
+                timePeriod = 'morning';
+                timePeriodClass = 'morning';
+                timePeriodText = 'Morning Peak Hours';
+            } else if (timeInHours >= 10 && timeInHours < 16) {
+                timePeriod = 'midday';
+                timePeriodClass = 'midday';
+                timePeriodText = 'Midday';
+            } else if (timeInHours >= 16 && timeInHours < 20) {
+                timePeriod = 'evening';
+                timePeriodClass = 'evening';
+                timePeriodText = 'Evening Peak Hours';
+            } else {
+                timePeriod = 'off-peak';
+                timePeriodClass = 'off-peak';
+                timePeriodText = 'Off-Peak Hours';
+            }
+            
+            timePeriodIndicator.innerHTML = `<span class="time-period ${timePeriodClass}">${timePeriodText}</span>`;
+            
+            // Set route description and travel time
+            const currentEst = estimateData.current_est === 'N/A' ? 'No data' : `${estimateData.current_est} buses`;
+            const nextEst = estimateData.next_est === 'N/A' ? 'No data' : `${estimateData.next_est} buses`;
+            routeDescription.textContent = `Current hour: ${currentEst}. Next hour: ${nextEst}.`;
+            travelTimeIndicator.textContent = `Estimated Travel Time: ${estimateData.travel_time}`;
+            
+            // Fetch full-day forecast
+            const forecastResponse = await fetch('/api/forecast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ routeCode })
+            });
+            const forecastData = await forecastResponse.json();
+            
+            if (forecastData.error) {
+                forecastTableBody.innerHTML = '<tr><td colspan="3">Error fetching forecast</td></tr>';
+                return;
+            }
+            
+            // Populate forecast table
+            forecastTableBody.innerHTML = '';
+            forecastData.forecast.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.hour}</td>
+                    <td>${item.buses_required === 'N/A' ? 'No data' : item.buses_required}</td>
+                    <td>${item.travel_time}</td>
+                `;
+                forecastTableBody.appendChild(row);
+            });
+
+            // Render line chart
+            try {
+                const labels = forecastData.forecast.map(i => i.hour);
+                const data = forecastData.forecast.map(i => (i.buses_required === 'N/A' ? null : i.buses_required));
+                const ctx = document.getElementById('forecastChart').getContext('2d');
+                if (window._forecastChart) {
+                    window._forecastChart.destroy();
+                }
+                window._forecastChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Buses Required',
+                            data,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                            tension: 0.25,
+                            pointRadius: 2,
+                            spanGaps: true,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { title: { display: true, text: 'Hour' } },
+                            y: { beginAtZero: true, title: { display: true, text: 'Buses' }, ticks: { precision: 0 } }
+                        },
+                        plugins: {
+                            legend: { display: true },
+                            tooltip: { mode: 'index', intersect: false }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Chart render error:', e);
+            }
+            
+            // Add animations
+            setTimeout(() => {
+                routeTypeIndicator.style.opacity = '1';
+                routeTypeIndicator.style.transform = 'translateY(0)';
+            }, 100);
+            setTimeout(() => {
+                routeDescription.style.opacity = '1';
+                routeDescription.style.transform = 'translateY(0)';
+            }, 200);
+            setTimeout(() => {
+                timePeriodIndicator.style.opacity = '1';
+                timePeriodIndicator.style.transform = 'translateY(0)';
+            }, 300);
+            setTimeout(() => {
+                travelTimeIndicator.style.opacity = '1';
+                travelTimeIndicator.style.transform = 'translateY(0)';
+            }, 400);
+        }
+        
+        document.getElementById('backBtn').addEventListener('click', function() {
+            window.location.href = 'input.html';
+        });
+        
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to logout?')) {
+                sessionStorage.removeItem('isLoggedIn');
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+</html>
